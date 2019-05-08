@@ -1,7 +1,12 @@
 """
+
 A* grid based planning
 
 author: Atsushi Sakai(@Atsushi_twi)
+        Nikos Kanargias (nkana@tee.gr)
+
+See Wikipedia article (https://en.wikipedia.org/wiki/A*_search_algorithm)
+
 """
 
 import matplotlib.pyplot as plt
@@ -22,7 +27,7 @@ class Node:
         return str(self.x) + "," + str(self.y) + "," + str(self.cost) + "," + str(self.pind)
 
 
-def calc_fianl_path(ngoal, closedset, reso):
+def calc_final_path(ngoal, closedset, reso):
     # generate final course
     rx, ry = [ngoal.x * reso], [ngoal.y * reso]
     pind = ngoal.pind
@@ -59,12 +64,11 @@ def a_star_planning(sx, sy, gx, gy, ox, oy, reso, rr):
 
     while 1:
         c_id = min(
-            openset, key=lambda o: openset[o].cost + calc_h(ngoal, openset[o].x, openset[o].y))
+            openset, key=lambda o: openset[o].cost + calc_heuristic(ngoal, openset[o]))
         current = openset[c_id]
-        #  print("current", current)
 
         # show graph
-        if show_animation:
+        if show_animation:  # pragma: no cover
             plt.plot(current.x * reso, current.y * reso, "xc")
             if len(closedset.keys()) % 10 == 0:
                 plt.pause(0.001)
@@ -81,32 +85,33 @@ def a_star_planning(sx, sy, gx, gy, ox, oy, reso, rr):
         closedset[c_id] = current
 
         # expand search grid based on motion model
-        for i in range(len(motion)):
-            node = Node(current.x + motion[i][0], current.y + motion[i][1],
+        for i, _ in enumerate(motion):
+            node = Node(current.x + motion[i][0],
+                        current.y + motion[i][1],
                         current.cost + motion[i][2], c_id)
             n_id = calc_index(node, xw, minx, miny)
+
+            if n_id in closedset:
+                continue
 
             if not verify_node(node, obmap, minx, miny, maxx, maxy):
                 continue
 
-            if n_id in closedset:
-                continue
-            # Otherwise if it is already in the open set
-            if n_id in openset:
-                if openset[n_id].cost > node.cost:
-                    openset[n_id].cost = node.cost
-                    openset[n_id].pind = c_id
+            if n_id not in openset:
+                openset[n_id] = node  # Discover a new node
             else:
-                openset[n_id] = node
+                if openset[n_id].cost >= node.cost:
+                    # This path is the best until now. record it!
+                    openset[n_id] = node
 
-    rx, ry = calc_fianl_path(ngoal, closedset, reso)
+    rx, ry = calc_final_path(ngoal, closedset, reso)
 
     return rx, ry
 
 
-def calc_h(ngoal, x, y):
-    w = 10.0  # weight of heuristic
-    d = w * math.sqrt((ngoal.x - x)**2 + (ngoal.y - y)**2)
+def calc_heuristic(n1, n2):
+    w = 1.0  # weight of heuristic
+    d = w * math.sqrt((n1.x - n2.x)**2 + (n1.y - n2.y)**2)
     return d
 
 
@@ -144,7 +149,7 @@ def calc_obstacle_map(ox, oy, reso, vr):
     #  print("ywidth:", ywidth)
 
     # obstacle map generation
-    obmap = [[False for i in range(xwidth)] for i in range(ywidth)]
+    obmap = [[False for i in range(ywidth)] for i in range(xwidth)]
     for ix in range(xwidth):
         x = ix + minx
         for iy in range(ywidth):
@@ -209,7 +214,7 @@ def main():
         ox.append(40.0)
         oy.append(60.0 - i)
 
-    if show_animation:
+    if show_animation:  # pragma: no cover
         plt.plot(ox, oy, ".k")
         plt.plot(sx, sy, "xr")
         plt.plot(gx, gy, "xb")
@@ -218,7 +223,7 @@ def main():
 
     rx, ry = a_star_planning(sx, sy, gx, gy, ox, oy, grid_size, robot_size)
 
-    if show_animation:
+    if show_animation:  # pragma: no cover
         plt.plot(rx, ry, "-r")
         plt.show()
 
